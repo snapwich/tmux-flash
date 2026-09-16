@@ -37,9 +37,15 @@ tmux capture-pane -p -t "$pane" -S "$start" -E "$end" > "$cap"
 labels="$(tmux show-option -gqv '@flash-labels')"
 
 # Spawn the replica detached (-d) so it never becomes the current window on
-# its own, and print (-P) its pane id so we can swap it into place.
-replica="$(tmux new-window -dP -F '#{pane_id}' -n flash \
+# its own, and print (-P) its pane and window id so we can size and swap it.
+read -r replica rwin <<<"$(tmux new-window -dP -F '#{pane_id} #{window_id}' -n flash \
   "exec /usr/bin/env python3 '$DIR/flash.py' --orig '$pane' --capture '$cap' --cx '$cx' --cy '$cy' --width '$w' --height '$h' --labels '${labels:-asdfghjklqwertyuiopzxcvbnm}'")"
+
+# The holding window is created at full window size. Swapping a pane into it
+# would resize the original pane (SIGWINCH) and resize it back on return --
+# full-screen TUIs such as nvim do not always repaint cleanly after that
+# round-trip. Size the holding window to the pane so no resize ever happens.
+tmux resize-window -t "$rwin" -x "$w" -y "$h"
 
 tmux swap-pane -s "$replica" -t "$pane"
 tmux select-pane -t "$replica"

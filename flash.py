@@ -139,6 +139,13 @@ class Flash:
             self.restored = True
             tmux("swap-pane", "-s", self.me, "-t", self.orig)
             tmux("select-pane", "-t", self.orig)
+            # swap-pane only repaints the region it thinks changed. Some
+            # terminals (Windows Terminal) are left with stale cells, so force
+            # every client on that session to redraw from the tmux grid.
+            for client in tmux_out("list-clients", "-F", "#{client_name}",
+                                   "-t", self.orig).split("\n"):
+                if client:
+                    tmux("refresh-client", "-t", client)
 
     def jump(self, row, col):
         """Move the original pane's copy-mode cursor to (row, col) of the
